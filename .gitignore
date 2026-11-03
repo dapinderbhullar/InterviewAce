@@ -8,3 +8,20 @@ frontend/.env
 
 dist/
 build/
+# User documents remain private; existing tracked files require explicit review.
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Environment variants and local credentials; keep distributable examples.
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Generated caches, reports and logs.
+coverage/
+.vite/
+*.tsbuildinfo
+*.log

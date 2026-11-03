@@ -1,95 +1,37 @@
-import { useState } from "react";
-import axios from "axios";
-import { Link, useNavigate } from "react-router-dom";
-
-function Register() {
-  const navigate = useNavigate();
-
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import api from '../lib/api';
+import AuthLayout, { PasswordInput } from '../components/AuthLayout';
+export default function Register() {
   const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
+      name: '',
+      email: '',
+      password: ''
+    }),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState('');
+  const navigate = useNavigate();
+  const change = key => e => setForm({
+    ...form,
+    [key]: e.target.value
   });
-
-  const handleRegister = async () => {
+  async function submit(e) {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError('');
     try {
-      await axios.post("http://localhost:5000/api/auth/register", form);
-
-      alert("Registration Successful");
-      navigate("/login");
-    } catch (error) {
-      alert(error.response?.data?.message || "Registration Failed");
+      await api.post('/auth/register', form);
+      navigate('/login', {
+        state: {
+          registered: true
+        }
+      });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Unable to create your account. Please try again.');
+    } finally {
+      setBusy(false);
     }
-  };
-
-  return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-        <h1>Register</h1>
-
-        <input
-          style={styles.input}
-          placeholder="Name"
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-        />
-
-        <input
-          style={styles.input}
-          placeholder="Email"
-          onChange={(e) => setForm({ ...form, email: e.target.value })}
-        />
-
-        <input
-          style={styles.input}
-          type="password"
-          placeholder="Password"
-          onChange={(e) => setForm({ ...form, password: e.target.value })}
-        />
-
-        <button style={styles.button} onClick={handleRegister}>
-          Register
-        </button>
-
-        <p>
-          Already have account? <Link to="/login">Login</Link>
-        </p>
-      </div>
-    </div>
-  );
+  }
+  return <AuthLayout><form className="auth-form" onSubmit={submit}><span className="eyebrow">YOUR NEXT CHAPTER</span><h2>Invest in your potential.</h2><p>Create your InterviewAce preparation workspace.</p>{error && <p role="alert">{error}</p>}<label htmlFor="name">Full name</label><input id="name" required maxLength={100} autoComplete="name" placeholder="Your name" value={form.name} onChange={change('name')} disabled={busy} /><label htmlFor="email">Email address</label><input id="email" type="email" required autoComplete="email" placeholder="you@example.com" value={form.email} onChange={change('email')} disabled={busy} /><label htmlFor="password">Password</label><PasswordInput register value={form.password} onChange={change('password')} disabled={busy} /><small>Use at least 8 characters.</small><button className="primary" disabled={busy}>{busy ? 'Creating account…' : 'Create your account →'}</button><p className="auth-switch">Already have an account? <Link to="/login">Sign in</Link></p></form></AuthLayout>;
 }
-
-const styles = {
-  page: {
-    minHeight: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    background: "#f1f5f9",
-  },
-  card: {
-    width: "380px",
-    padding: "30px",
-    borderRadius: "12px",
-    background: "white",
-    boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
-    textAlign: "center",
-  },
-  input: {
-    width: "100%",
-    padding: "12px",
-    margin: "10px 0",
-    borderRadius: "6px",
-    border: "1px solid #ccc",
-  },
-  button: {
-    width: "100%",
-    padding: "12px",
-    background: "#1e293b",
-    color: "white",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-  },
-};
-
-export default Register;

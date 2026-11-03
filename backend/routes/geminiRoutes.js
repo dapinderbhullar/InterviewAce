@@ -1,54 +1,25 @@
-const express = require("express");
-const router = express.Router();
-
-const {
-  analyzeResume,
-  generateATS,
-  generateQuestions,
-} = require("../services/geminiService");
-
+const router = require("express").Router();
+const services = require("../services/geminiService");
 const extractText = require("../utils/extractText");
-
-router.post("/analyze", async (req, res) => {
-  try {
-    const text = await extractText(req.body.path);
-    const analysis = await analyzeResume(text);
-
-    res.json({ analysis });
-  } catch (error) {
-    res.status(500).json({
-      message: "Analysis Failed",
-      error: error.message,
-    });
-  }
-});
-
-router.post("/ats", async (req, res) => {
-  try {
-    const text = await extractText(req.body.path);
-    const result = await generateATS(text);
-
-    res.json({ result });
-  } catch (error) {
-    res.status(500).json({
-      message: "ATS Failed",
-      error: error.message,
-    });
-  }
-});
-
-router.post("/questions", async (req, res) => {
-  try {
-    const text = await extractText(req.body.path);
-    const questions = await generateQuestions(text);
-
-    res.json({ questions });
-  } catch (error) {
-    res.status(500).json({
-      message: "Question Generation Failed",
-      error: error.message,
-    });
-  }
-});
-
+const { ownedResume } = require("../controllers/resumeController");
+const { resolveUpload } = require("../config/storage");
+const Resume = require("../models/Resume");
+const httpError = require("../utils/httpError");
+for (const [endpoint, method, key] of [
+  ["analyze", "analyzeResume", "analysis"],
+  ["ats", "generateATS", "result"],
+  ["questions", "generateQuestions", "questions"],
+]) {
+  router.post(`/${endpoint}`, async (req, res) => {
+    const resume = await ownedResume(req.userId, req.body);
+    const stored = await Resume.findOne({ _id: resume._id, userId: req.userId }).select("+extractedText");
+    if (!stored) throw httpError(404, "Resume not found");
+    let text = stored.extractedText;
+    if (!text) {
+      text = await extractText(resolveUpload(resume.filePath));
+      await Resume.updateOne({ _id: resume._id, userId: req.userId }, { $set: { extractedText: text } });
+    }
+    res.json({ [key]: await services[method](text) });
+  });
+}
 module.exports = router;

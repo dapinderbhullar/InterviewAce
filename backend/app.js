@@ -1,0 +1,37 @@
+const express = require("express");
+const cors = require("cors");
+const mongoose = require("mongoose");
+const auth = require("./middleware/auth");
+const rateLimit = require("./middleware/rateLimit");
+const { downloadResume } = require("./controllers/resumeController");
+const app = express();
+app.disable("x-powered-by");
+const origins = (process.env.FRONTEND_ORIGIN || "http://localhost:5173").split(",").map(value => value.trim());
+app.use(cors({ origin: origins }));
+app.use((req, res, next) => {
+  res.set("X-Content-Type-Options", "nosniff");
+  res.set("X-Frame-Options", "DENY");
+  res.set("Referrer-Policy", "no-referrer");
+  res.set("Cache-Control", "no-store");
+  next();
+});
+app.use(express.json({ limit: "64kb" }));
+app.get("/", (req, res) => res.send("Server Running"));
+app.get("/health/ready", (req, res) => {
+  const ready = mongoose.connection.readyState === 1;
+  res.status(ready ? 200 : 503).json({ ready });
+});
+app.use("/api/auth", rateLimit({ limit: 30 }), require("./routes/auth"));
+app.use("/api/notes", auth, require("./routes/noteRoutes"));
+const uploadRateLimit = rateLimit({ limit: 20 });
+app.use("/api/resume", auth, require("./routes/resume")(uploadRateLimit));
+app.use("/api/uploads", auth, require("./routes/uploadRoutes")(uploadRateLimit));
+app.use("/api/gemini", auth, rateLimit({ limit: 10 }), require("./routes/geminiRoutes"));
+app.use("/api/profiles", auth, require("./routes/profileRoutes"));
+app.use("/api/jobs", auth, require("./routes/jobRoutes"));
+app.use("/api/interviews", auth, require("./routes/interviewRoutes"));
+app.use("/api/learning", auth, require("./routes/learningRoutes"));
+app.get("/uploads/:file", auth, downloadResume);
+app.use((req, res) => res.status(404).json({ message: "Not found" }));
+app.use(require("./middleware/errorHandler"));
+module.exports = app;

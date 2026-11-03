@@ -1,123 +1,103 @@
+import { ConfirmButton } from '../components/Feedback';
+import { notify } from '../lib/notifications';
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../lib/api";
 import Navbar from "../components/Navbar";
-
-function Notes() {
+export default function Notes() {
   const [notes, setNotes] = useState([]);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-
-  const getNotes = async () => {
-    try {
-      const res = await axios.get("http://localhost:5000/api/notes");
-      setNotes(res.data);
-    } catch (error) {
-      console.log("GET NOTES ERROR:", error);
-    }
-  };
-
+  const [editing, setEditing] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [refresh, setRefresh] = useState(0);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
-    getNotes();
-  }, []);
-
-  const addNote = async () => {
+    let active = true;
+    api.get(`/notes?page=${page}`).then(({
+      data
+    }) => {
+      if (active) setNotes(data);
+    }).catch(err => {
+      if (active) setError(err.response?.data?.message || "Could not load notes.");
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [page, refresh]);
+  function reload() {
+    setLoading(true);
+    setRefresh(value => value + 1);
+  }
+  async function save(event) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
     try {
-      if (!title || !content) {
-        alert("Please fill all fields");
-        return;
-      }
-
-      const res = await axios.post("http://localhost:5000/api/notes", {
+      if (editing) await api.put(`/notes/${editing}`, {
         title,
-        content,
+        content
+      });else await api.post("/notes", {
+        title,
+        content
       });
-
-      console.log("NOTE ADDED:", res.data);
-
+      notify(editing ? "Note updated." : "Note added.");
       setTitle("");
       setContent("");
-      getNotes();
-    } catch (error) {
-      console.log("ADD NOTE ERROR:", error);
-      alert("Note not added");
+      setEditing(null);
+      setPage(1);
+      reload();
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not save note.");
+    } finally {
+      setBusy(false);
     }
-  };
-
-  const deleteNote = async (id) => {
-    await axios.delete(`http://localhost:5000/api/notes/${id}`);
-    getNotes();
-  };
-
-  return (
-    <>
-      <Navbar />
-
-      <div style={{ textAlign: "center", marginTop: "60px" }}>
-        <h1>Notes</h1>
-
-        <div
-          style={{
-            width: "420px",
-            margin: "auto",
-            padding: "25px",
-            border: "1px solid #ddd",
-            borderRadius: "12px",
-            background: "#f8fafc",
-          }}
-        >
-          <input
-            placeholder="Title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            style={{ width: "90%", padding: "10px" }}
-          />
-
-          <br />
-          <br />
-
-          <textarea
-            placeholder="Content"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            style={{ width: "90%", padding: "10px", height: "90px" }}
-          />
-
-          <br />
-          <br />
-
-          <button onClick={addNote}>Add Note</button>
-        </div>
-
-        <hr style={{ marginTop: "30px" }} />
-
-        <h2>All Notes</h2>
-
-        {notes.length === 0 && <p>No notes yet</p>}
-
-        {notes.map((note) => (
-          <div
-            key={note._id}
-            style={{
-              width: "420px",
-              margin: "15px auto",
-              padding: "15px",
-              border: "1px solid #ddd",
-              borderRadius: "10px",
-              background: "white",
-              textAlign: "left",
-            }}
-          >
-            <h3>{note.title}</h3>
-            <p>{note.content}</p>
-
-            <button onClick={() => deleteNote(note._id)}>
-              Delete
-            </button>
-          </div>
-        ))}
-      </div>
-    </>
-  );
+  }
+  async function remove(id) {
+    setBusy(true);
+    setError("");
+    try {
+      await api.delete(`/notes/${id}`);
+      reload();
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not delete note.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return <><Navbar /><main className="feature-page" id="workspace" tabIndex={-1}><h1>Notes</h1>
+    <form className="panel" onSubmit={save}>
+      <label htmlFor="note-title">Title</label><input id="note-title" required maxLength={200} value={title} onChange={event => setTitle(event.target.value)} />
+      <label htmlFor="note-content">Content</label><textarea id="note-content" required maxLength={20000} rows={5} value={content} onChange={event => setContent(event.target.value)} />
+      <button disabled={busy || !title.trim() || !content.trim()}>{editing ? "Save Changes" : "Add Note"}</button>
+      {editing && <button type="button" onClick={() => {
+          setEditing(null);
+          setTitle("");
+          setContent("");
+        }}>Cancel</button>}
+    </form>
+    {error && <div role="alert"><p>{error}</p><button onClick={() => {
+          setError("");
+          reload();
+        }}>Retry loading notes</button></div>}
+    <h2>Your Notes</h2>{loading ? <p role="status">Loading notes...</p> : !notes.length && <p>No notes on this page.</p>}
+    {!loading && notes.map(note => <article className="panel" key={note._id}><h3>{note.title}</h3><p className="note-content">{note.content}</p>
+      <div className="actions"><button disabled={busy} onClick={() => {
+            setEditing(note._id);
+            setTitle(note.title);
+            setContent(note.content);
+          }}>Edit</button>
+      <ConfirmButton disabled={busy} title="Delete this note?" description="This permanently removes the saved note." confirmLabel="Delete note" onConfirm={() => remove(note._id)}>Delete</ConfirmButton></div></article>)}
+    <div className="actions"><button disabled={loading || page === 1} onClick={() => {
+          setLoading(true);
+          setPage(value => value - 1);
+        }}>Previous</button>
+      <span>Page {page}</span><button disabled={loading || notes.length < 50} onClick={() => {
+          setLoading(true);
+          setPage(value => value + 1);
+        }}>Next</button></div>
+  </main></>;
 }
-
-export default Notes;

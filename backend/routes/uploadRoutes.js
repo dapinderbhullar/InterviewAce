@@ -1,25 +1,8 @@
 const express = require("express");
-const multer = require("multer");
-
-const router = express.Router();
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + "-" + file.originalname);
-  },
-});
-
-const upload = multer({ storage });
-
-router.post("/", upload.single("resume"), (req, res) => {
-  res.json({
-    message: "Uploaded",
-    file: req.file.filename,
-    path: `uploads/${req.file.filename}`,
-  });
-});
-
-module.exports = router;
+const upload = require("../middleware/upload");
+const { uploadResume } = require("../controllers/resumeController");
+module.exports = function uploadRoutes(uploadRateLimit) {
+  const router = express.Router();
+  router.post("/", uploadRateLimit, upload.single("resume"), uploadResume);
+  return router;
+};

@@ -1,118 +1,37 @@
-import { useState } from "react";
-import axios from "axios";
-import { Link, useNavigate } from "react-router-dom";
-
-function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+import { useState } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import api from '../lib/api';
+import { useAuth } from '../context/auth';
+import AuthLayout, { PasswordInput } from '../components/AuthLayout';
+export default function Login() {
+  const [email, setEmail] = useState(''),
+    [password, setPassword] = useState(''),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState('');
   const navigate = useNavigate();
-
-  const login = async () => {
+  const location = useLocation();
+  const {
+    login
+  } = useAuth();
+  async function submit(event) {
+    event.preventDefault();
+    if (busy) return;
+    setBusy(true);
+    setError('');
     try {
-      if (!email || !password) {
-        alert("Please fill all fields");
-        return;
-      }
-
-      const res = await axios.post("http://localhost:5000/api/auth/login", {
+      const {
+        data
+      } = await api.post('/auth/login', {
         email,
-        password,
+        password
       });
-
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("userName", res.data.name);
-
-      alert("Login successful");
-      navigate("/dashboard");
-    } catch (error) {
-      alert(error.response?.data?.message || "Login failed");
+      login(data);
+      navigate('/dashboard');
+    } catch (e) {
+      setError(e.response?.data?.message || 'Unable to sign in. Check your details and try again.');
+    } finally {
+      setBusy(false);
     }
-  };
-
-  return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-        <h1 style={styles.title}>Login</h1>
-
-        <input
-          style={styles.input}
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-
-        <input
-          style={styles.input}
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-
-        <button style={styles.button} onClick={login}>
-          Login
-        </button>
-
-        <p style={styles.text}>
-          New user? <Link to="/register">Register here</Link>
-        </p>
-      </div>
-    </div>
-  );
+  }
+  return <AuthLayout><form className="auth-form" onSubmit={submit}><span className="eyebrow">WELCOME BACK</span><h2>Make your next move.</h2><p>Sign in to your InterviewAce workspace.</p>{location.state?.registered && <p className="success" role="status">Account created. Sign in to get started.</p>}{error && <p role="alert">{error}</p>}<label htmlFor="email">Email address</label><input id="email" type="email" required autoComplete="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} disabled={busy} /><label htmlFor="password">Password</label><PasswordInput value={password} onChange={e => setPassword(e.target.value)} disabled={busy} /><button className="primary" disabled={busy}>{busy ? 'Signing in…' : 'Sign in to workspace →'}</button><p className="auth-switch">New to InterviewAce? <Link to="/register">Create an account</Link></p></form></AuthLayout>;
 }
-
-const styles = {
-  page: {
-    minHeight: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    background: "#f1f5f9",
-  },
-
-  card: {
-    width: "400px",
-    padding: "30px",
-    borderRadius: "12px",
-    background: "white",
-    boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
-    textAlign: "center",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-  },
-
-  title: {
-    marginBottom: "20px",
-    color: "#1e293b",
-  },
-
-  input: {
-    width: "100%",
-    padding: "12px",
-    marginBottom: "15px",
-    borderRadius: "6px",
-    border: "1px solid #ccc",
-    fontSize: "16px",
-    boxSizing: "border-box",
-  },
-
-  button: {
-    width: "100%",
-    padding: "12px",
-    background: "#1e293b",
-    color: "white",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontSize: "16px",
-    fontWeight: "bold",
-    boxSizing: "border-box",
-  },
-
-  text: {
-    marginTop: "15px",
-  },
-};
-
-export default Login;

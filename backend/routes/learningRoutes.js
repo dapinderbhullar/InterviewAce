@@ -1,0 +1,9 @@
+const router = require('express').Router();
+const rateLimit = require('../middleware/rateLimit');
+const service = require('../services/learning').createLearningService();
+router.post('/', rateLimit({ limit: 30 }), async (req, res) => res.json(await service.refresh(req.userId, req.body)));
+router.get('/:roadmapId', async (req, res) => res.json(await service.get(req.userId, req.params.roadmapId)));
+router.patch('/tasks/:taskId', async (req, res) => res.json(await service.complete(req.userId, req.params.taskId, req.body)));
+router.post('/tasks/:taskId/exercises', rateLimit({ limit: 20 }), async (req, res) => res.json({ attempt: await service.exercise(req.userId, req.params.taskId, req.body) }));
+router.post('/attempts/:attemptId/answer', rateLimit({ limit: 30 }), async (req, res) => res.json({ attempt: await service.submit(req.userId, req.params.attemptId, req.body) }));
+module.exports = router;

@@ -1,5 +1,12 @@
 {
   "dependencies": {
     "react-icons": "^5.6.0"
+  },
+  "name": "interviewace",
+  "description": "InterviewAce placement preparation project.",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dapinderbhullar/InterviewAce-.git"
   }
 }
