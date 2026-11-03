@@ -2,7 +2,7 @@
 
 InterviewAce is an AI-assisted placement preparation application built with MongoDB, Express, React and Node.js. It connects resume evidence, job requirements, mock interview feedback and targeted practice in one preparation workflow.
 
-## Problem statement and objectives
+## Problem Statement and Objectives
 
 Candidates often prepare with disconnected resume tools, generic interview questions and untracked study plans. InterviewAce aims to help candidates:
 
